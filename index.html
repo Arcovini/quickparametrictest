@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Guarda Roupa Paramétrico</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            overflow: hidden;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                touch-action: manipulation;
+                position: fixed;
+                width: 100%;
+                height: 100vh;
+            }
+        }
+
+        #canvas-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: calc(100% - 320px);
+            height: 100vh;
+        }
+
+        #controls {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 320px;
+            height: 100vh;
+            background: #f5f5f5;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            padding: 20px;
+            border-left: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            #canvas-container {
+                width: 100%;
+                height: 50vh;
+                /* position: fixed; */
+                top: 0;
+                left: 0;
+                z-index: 1;
+                pointer-events: auto;
+            }
+            
+            #controls {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                height: calc(100% - 250px); /* Full height minus safe area */
+                background: rgba(245, 245, 245, 0.95);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border-top: 2px solid rgba(0, 0, 0, 0.08);
+                border-radius: 24px 24px 0 0;
+                box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.12);
+                padding: 0;
+                transform: translateY(calc(50%)); /* Show only 80px at bottom */
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+                overflow: hidden;
+                z-index: 100;
+                will-change: transform;
+                display: flex;
+                flex-direction: column;
+            }
+
+            #controls.expanded {
+                transform: translateY(0); /* Full screen when expanded */
+                height: 100vh; /* Take full viewport height */
+                border-radius: 0;
+                background: rgba(245, 245, 245, 0.98);
+            }
+
+            .mobile-handle {
+                display: block;
+                width: 50px;
+                max-width: 50px;
+                height: 5px;
+                background: rgba(0, 0, 0, 0.25);
+                border-radius: 3px;
+                margin: 12px auto 8px;
+                cursor: pointer;
+                transition: background 0.2s;
+                position: relative;
+                flex-shrink: 0;
+            }
+            
+            .mobile-handle:active {
+                background: rgba(0, 0, 0, 0.4);
+            }
+            
+            @keyframes handlePulse {
+                0%, 100% { background-color: rgba(0, 0, 0, 0.25); }
+                50% { background-color: rgba(0, 0, 0, 0.35); }
+            }
+            
+            .mobile-handle {
+                animation: handlePulse 2s ease-in-out infinite;
+            }
+            
+            .mobile-hint {
+                display: inline-block !important;
+                font-size: 11px;
+                color: #888;
+                animation: fadeInOut 3s ease-in-out;
+            }
+            
+            #controls.expanded .mobile-hint {
+                display: none !important;
+            }
+            
+            @keyframes fadeInOut {
+                0%, 100% { opacity: 0.5; }
+                50% { opacity: 1; }
+            }
+
+            .mobile-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 20px 12px;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+                background: rgba(255, 255, 255, 0.5);
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+                flex-shrink: 0;
+                min-height: 50px;
+            }
+            
+            #controls.expanded .mobile-header {
+                background: rgba(255, 255, 255, 0.8);
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+                padding-top: calc(8px + env(safe-area-inset-top));
+            }
+
+            .expand-icon {
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #555;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                transform: rotate(180deg);
+            }
+
+            #controls.expanded .expand-icon {
+                transform: rotate(0deg);
+            }
+
+            .controls-content {
+                flex: 1;
+                padding: 20px;
+                padding-bottom: calc(40px + env(safe-area-inset-bottom));
+                overflow-y: auto;
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                scroll-behavior: smooth;
+                position: relative;
+                min-height: 0;
+            }
+            
+            #controls.expanded .controls-content {
+                padding-top: 10px;
+                padding-bottom: calc(60px + env(safe-area-inset-bottom));
+            }
+            
+            .controls-content::-webkit-scrollbar {
+                width: 4px;
+            }
+            
+            .controls-content::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            
+            .controls-content::-webkit-scrollbar-thumb {
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 2px;
+            }
+
+            #info-panel {
+                display: none;
+            }
+
+            .control-section {
+                background: rgba(255, 255, 255, 0.6);
+                backdrop-filter: blur(5px);
+                -webkit-backdrop-filter: blur(5px);
+            }
+            
+            input[type="range"]::-webkit-slider-thumb {
+                width: 22px;
+                height: 22px;
+            }
+            
+            input[type="range"]::-moz-range-thumb {
+                width: 22px;
+                height: 22px;
+            }
+        }
+
+        /* Controls content - default for desktop */
+        .controls-content {
+            padding: 0;
+        }
+        
+        .controls-content h2 {
+            display: block;
+            margin-bottom: 20px;
+            margin-top: 20px;
+            margin-left: 12px;
+            color: #444;
+            font-weight: 500;
+            font-size: 19px;
+        }
+        
+        @media (max-width: 768px) {
+            .controls-content h2 {
+                font-size: 17px;
+                margin-bottom: 16px;
+            }
+        }
+        
+        /* Hide mobile-only elements on desktop */
+        .mobile-handle,
+        .mobile-header {
+            display: none;
+        }
+
+        /* Ensure smooth scrolling on iOS */
+        .controls-content {
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Prevent text selection on mobile UI elements */
+        .mobile-handle,
+        .mobile-header {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* Adjust control sections for better mobile visibility */
+        @media (max-width: 768px) {
+            .control-section {
+                margin-bottom: 20px;
+                padding: 12px;
+            }
+
+            .section-title {
+                font-size: 16px;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+            }
+
+            .control-group {
+                margin-bottom: 12px;
+            }
+
+            label {
+                font-size: 13px;
+            }
+
+            .material-selector {
+                gap: 12px;
+                justify-content: center;
+            }
+
+            .material-option {
+                width: 55px;
+                height: 55px;
+            }
+            
+            .material-label {
+                font-size: 10px;
+            }
+        }
+
+        /* Landscape orientation adjustments */
+        @media (max-width: 812px) and (orientation: landscape) {
+            #controls {
+                height: calc(100vh - 40px);
+                transform: translateY(calc(100% - 60px));
+            }
+            
+            #controls.expanded {
+                transform: translateY(0);
+                height: 100vh;
+            }
+            
+            .controls-content {
+                padding-bottom: calc(40px + env(safe-area-inset-bottom));
+            }
+        }
+        
+        /* Very small screens */
+        @media (max-width: 480px) and (max-height: 700px) {
+            #controls {
+                height: calc(100vh - 50px);
+            }
+            
+            #controls.expanded {
+                transform: translateY(0);
+                height: 100vh;
+            }
+            
+            .controls-content {
+                padding-bottom: calc(50px + env(safe-area-inset-bottom));
+            }
+        }
+        
+        /* Tablet specific adjustments */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            #canvas-container {
+                width: calc(100% - 300px);
+            }
+            
+            #controls {
+                width: 300px;
+            }
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 8px 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #888;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #666;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #888;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.2s, background 0.2s;
+        }
+        
+        input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            background: #666;
+        }
+
+        .value-display {
+            display: inline-block;
+            margin-left: 10px;
+            color: #666;
+            font-weight: 600;
+            min-width: 50px;
+        }
+
+        .info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        /* Material selection styles */
+        .material-selector {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .material-option {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            border: 3px solid transparent;
+        }
+
+        .material-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .material-option.active {
+            border-color: #888;
+            box-shadow: 0 0 0 3px rgba(136, 136, 136, 0.15);
+        }
+
+        .material-texture {
+            background-image: url('wood-texture.jpg');
+            background-size: cover;
+            background-position: center;
+            background-color: #8B7355;
+        }
+
+        .material-gray {
+            background-color: #777777;
+        }
+
+        .material-light {
+            background-color: #e8e8e8;
+        }
+
+        .material-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            font-size: 12px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="controls">
+        <div class="mobile-handle" id="mobile-handle"></div>
+        <div class="mobile-header" id="mobile-header">
+            <h2 style="font-size: 16px; margin: 0; font-weight: 600;">Configurador</h2>
+            <div class="expand-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="controls-content">
+            <h2 style="color: #444; font-weight: 500;">Guarda Roupa Paramétrico</h2>
+            
+            <!-- Seção Geral -->
+            <div class="control-section">
+                <div class="section-title">Geral</div>
+                
+                <div class="control-group">
+                    <label>Altura (cm): <span class="value-display" id="height-value">200</span></label>
+                    <input type="range" id="height" min="150" max="250" value="200" step="5">
+                </div>
+                
+                <div class="control-group">
+                    <label>Largura (cm): <span class="value-display" id="width-value">100</span></label>
+                    <input type="range" id="width" min="60" max="150" value="100" step="5">
+                </div>
+                
+                <div class="control-group">
+                    <label>Profundidade (cm): <span class="value-display" id="depth-value">60</span></label>
+                    <input type="range" id="depth" min="40" max="80" value="60" step="5">
+                </div>
+
+                <div class="control-group" style="margin-top: 20px;">
+                    <label>Material:</label>
+                    <div class="material-selector">
+                        <div class="material-option material-texture active" data-material="texture" style="position: relative;">
+                            <span class="material-label">Madeira</span>
+                        </div>
+                        <div class="material-option material-gray" data-material="gray" style="position: relative;">
+                            <span class="material-label">Cinza</span>
+                        </div>
+                        <div class="material-option material-light" data-material="light" style="position: relative;">
+                            <span class="material-label">Claro</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Seção Sapateira -->
+            <div class="control-section">
+                <div class="section-title">Sapateira</div>
+                
+                <div class="control-group">
+                    <label>Altura da Sapateira (cm): <span class="value-display" id="shoe-height-value">30</span></label>
+                    <input type="range" id="shoe-height" min="0" max="50" value="30" step="5">
+                    <div class="info">Espaço inferior para armazenamento de sapatos</div>
+                </div>
+            </div>
+            
+            <!-- Seção Gavetas -->
+            <div class="control-section">
+                <div class="section-title">Gavetas</div>
+                
+                <div class="control-group">
+                    <label>Número de Gavetas: <span class="value-display" id="drawer-count-value">3</span></label>
+                    <input type="range" id="drawer-count" min="0" max="6" value="3" step="1">
+                </div>
+                
+                <div class="control-group">
+                    <label>Altura de cada Gaveta (cm): <span class="value-display" id="drawer-height-value">20</span></label>
+                    <input type="range" id="drawer-height" min="10" max="30" value="20" step="2">
+                </div>
+            </div>
+            
+            <!-- Seção Prateleiras -->
+            <div class="control-section">
+                <div class="section-title">Prateleiras</div>
+                
+                <div class="control-group">
+                    <label>Número de Prateleiras: <span class="value-display" id="shelf-count-value">3</span></label>
+                    <input type="range" id="shelf-count" min="0" max="8" value="3" step="1">
+                    <div class="info">Prateleiras no espaço restante</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-panel">
+        <strong>Controles de Câmera:</strong><br>
+        • Botão esquerdo: Rotacionar<br>
+        • Botão direito: Mover<br>
+        • Scroll: Zoom<br><br>
+        <strong>Sombra:</strong> Contact Shadow<br>
+        <small>(Ajustável no código)</small>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Configuração básica da cena
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf5f5f5);
+
+        // Check if mobile
+        const isMobile = window.innerWidth <= 768;
+        
+        // Configuração da câmera
+        const camera = new THREE.PerspectiveCamera(
+            45,
+            isMobile ? window.innerWidth / window.innerHeight : (window.innerWidth - 320) / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(2.5, 1.5, 4);
+        camera.lookAt(0, 1, 0);
+
+        // Configuração do renderizador
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(
+            isMobile ? window.innerWidth : window.innerWidth - 320, 
+            window.innerHeight
+        );
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Controles de órbita simples
+        class SimpleOrbitControls {
+            constructor(camera, domElement) {
+                this.camera = camera;
+                this.domElement = domElement;
+                this.target = new THREE.Vector3(0, 1, 0);
+                
+                this.spherical = new THREE.Spherical();
+                this.sphericalDelta = new THREE.Spherical();
+                this.scale = 1;
+                this.panOffset = new THREE.Vector3();
+                
+                this.rotateSpeed = 1.0;
+                this.panSpeed = 1.0;
+                this.zoomSpeed = 1.0;
+                
+                this.mouseButtons = {
+                    LEFT: 0,
+                    MIDDLE: 1,
+                    RIGHT: 2
+                };
+                
+                this.state = 0; // 0: none, 1: rotate, 2: pan
+                this.mouseStart = new THREE.Vector2();
+                this.mouseEnd = new THREE.Vector2();
+                this.mouseDelta = new THREE.Vector2();
+                
+                this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
+                this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this));
+                this.domElement.addEventListener('contextmenu', e => e.preventDefault());
+                
+                // Touch support for mobile
+                this.domElement.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
+                this.domElement.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+                this.domElement.addEventListener('touchend', this.onTouchEnd.bind(this));
+                
+                this.touches = [];
+                this.update();
+            }
+            
+            onTouchStart(event) {
+                // Don't start orbit if touching the UI panel when it's expanded
+                if (event.target.closest('#controls') && document.getElementById('controls').classList.contains('expanded')) {
+                    return;
+                }
+                
+                // Allow touch on 3D when panel is collapsed
+                if (event.target.closest('#controls') && !event.target.closest('#canvas-container')) {
+                    return;
+                }
+                
+                event.preventDefault();
+                
+                this.touches = event.touches;
+                
+                if (event.touches.length === 1) {
+                    // Single touch - rotate
+                    this.state = 1;
+                    this.mouseStart.set(event.touches[0].clientX, event.touches[0].clientY);
+                } else if (event.touches.length === 2) {
+                    // Two touches - zoom
+                    this.state = 3;
+                    const dx = event.touches[0].clientX - event.touches[1].clientX;
+                    const dy = event.touches[0].clientY - event.touches[1].clientY;
+                    this.startDistance = Math.sqrt(dx * dx + dy * dy);
+                }
+            }
+            
+            onTouchMove(event) {
+                if (this.state === 0 || event.target.closest('#controls')) {
+                    return;
+                }
+                
+                event.preventDefault();
+                
+                if (event.touches.length === 1 && this.state === 1) {
+                    // Single touch rotate
+                    this.mouseEnd.set(event.touches[0].clientX, event.touches[0].clientY);
+                    this.mouseDelta.subVectors(this.mouseEnd, this.mouseStart);
+                    
+                    const element = this.domElement;
+                    const rotateLeft = 2 * Math.PI * this.mouseDelta.x / element.clientHeight * this.rotateSpeed;
+                    const rotateUp = 2 * Math.PI * this.mouseDelta.y / element.clientHeight * this.rotateSpeed;
+                    
+                    this.sphericalDelta.theta -= rotateLeft;
+                    this.sphericalDelta.phi -= rotateUp;
+                    
+                    this.mouseStart.copy(this.mouseEnd);
+                    this.update();
+                } else if (event.touches.length === 2 && this.state === 3) {
+                    // Two touch zoom
+                    const dx = event.touches[0].clientX - event.touches[1].clientX;
+                    const dy = event.touches[0].clientY - event.touches[1].clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    this.scale *= this.startDistance / distance;
+                    this.startDistance = distance;
+                    
+                    this.update();
+                }
+            }
+            
+            onTouchEnd(event) {
+                this.state = 0;
+                this.touches = [];
+            }
+            
+            onMouseDown(event) {
+                event.preventDefault();
+                
+                if (event.button === this.mouseButtons.LEFT) {
+                    this.state = 1; // rotate
+                } else if (event.button === this.mouseButtons.RIGHT) {
+                    this.state = 2; // pan
+                }
+                
+                this.mouseStart.set(event.clientX, event.clientY);
+                
+                document.addEventListener('mousemove', this.onMouseMove.bind(this));
+                document.addEventListener('mouseup', this.onMouseUp.bind(this));
+            }
+            
+            onMouseMove(event) {
+                event.preventDefault();
+                
+                this.mouseEnd.set(event.clientX, event.clientY);
+                this.mouseDelta.subVectors(this.mouseEnd, this.mouseStart);
+                
+                const element = this.domElement;
+                
+                if (this.state === 1) { // rotate
+                    const rotateLeft = 2 * Math.PI * this.mouseDelta.x / element.clientHeight * this.rotateSpeed;
+                    const rotateUp = 2 * Math.PI * this.mouseDelta.y / element.clientHeight * this.rotateSpeed;
+                    
+                    this.sphericalDelta.theta -= rotateLeft;
+                    this.sphericalDelta.phi -= rotateUp;
+                } else if (this.state === 2) { // pan
+                    const offset = new THREE.Vector3();
+                    const distance = this.camera.position.distanceTo(this.target);
+                    
+                    let targetDistance = distance * Math.tan((this.camera.fov / 2) * Math.PI / 180.0);
+                    
+                    const panLeft = 2 * this.mouseDelta.x * targetDistance / element.clientHeight * this.panSpeed;
+                    const panUp = 2 * this.mouseDelta.y * targetDistance / element.clientHeight * this.panSpeed;
+                    
+                    const v = new THREE.Vector3();
+                    v.setFromMatrixColumn(this.camera.matrix, 0);
+                    v.multiplyScalar(-panLeft);
+                    this.panOffset.add(v);
+                    
+                    v.setFromMatrixColumn(this.camera.matrix, 1);
+                    v.multiplyScalar(panUp);
+                    this.panOffset.add(v);
+                }
+                
+                this.mouseStart.copy(this.mouseEnd);
+                this.update();
+            }
+            
+            onMouseUp() {
+                this.state = 0;
+                document.removeEventListener('mousemove', this.onMouseMove.bind(this));
+                document.removeEventListener('mouseup', this.onMouseUp.bind(this));
+            }
+            
+            onMouseWheel(event) {
+                event.preventDefault();
+                
+                if (event.deltaY < 0) {
+                    this.scale *= 0.95;
+                } else {
+                    this.scale *= 1.05;
+                }
+                
+                this.update();
+            }
+            
+            update() {
+                const offset = new THREE.Vector3();
+                offset.copy(this.camera.position).sub(this.target);
+                
+                this.spherical.setFromVector3(offset);
+                
+                this.spherical.theta += this.sphericalDelta.theta;
+                this.spherical.phi += this.sphericalDelta.phi;
+                
+                this.spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, this.spherical.phi));
+                
+                this.spherical.radius *= this.scale;
+                this.spherical.radius = Math.max(2, Math.min(20, this.spherical.radius));
+                
+                offset.setFromSpherical(this.spherical);
+                
+                this.target.add(this.panOffset);
+                
+                this.camera.position.copy(this.target).add(offset);
+                this.camera.lookAt(this.target);
+                
+                this.sphericalDelta.set(0, 0, 0);
+                this.panOffset.set(0, 0, 0);
+                this.scale = 1;
+            }
+        }
+
+        const controls = new SimpleOrbitControls(camera, renderer.domElement);
+
+        // Iluminação melhorada
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+        scene.add(ambientLight);
+
+        // Luz principal
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.45);
+        directionalLight.position.set(3, 8, 4);
+        scene.add(directionalLight);
+
+        // Luz de preenchimento lateral
+        const fillLight1 = new THREE.DirectionalLight(0xffffff, 0.3);
+        fillLight1.position.set(-5, 3, 2);
+        scene.add(fillLight1);
+
+        // Luz de preenchimento traseira
+        const fillLight2 = new THREE.DirectionalLight(0xffffff, 0.25);
+        fillLight2.position.set(2, 4, -5);
+        scene.add(fillLight2);
+
+        // Luz hemisférica para suavizar sombras
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xf0f0f0, 0.4);
+        hemiLight.position.set(0, 20, 0);
+        scene.add(hemiLight);
+
+        // Contact Shadow implementation (similar to React Three Fiber's ContactShadows)
+        // This creates a soft shadow beneath the wardrobe without using real shadow mapping
+        const createContactShadow = () => {
+            // ========================================
+            // ADJUSTABLE PARAMETERS - Modify these values to customize the shadow
+            // Recommended ranges:
+            // - opacity: 0.1 to 0.5 (subtle to strong)
+            // - blur: 0 to 3 (sharp to very soft)
+            // - scale: 2 to 5 (small to large coverage)
+            // ========================================
+            const shadowParams = {
+                opacity: 0.25,     // Shadow darkness (similar to ContactShadows default)
+                blur: 1.5,         // Blur amount (similar to ContactShadows default)
+                scale: 3,          // Size of shadow plane
+                color: 0x000000,   // Shadow color (black)
+                height: 0.001      // Height above ground
+            };
+            
+            // Create shadow texture with radial gradient
+            const shadowSize = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = shadowSize;
+            canvas.height = shadowSize;
+            const context = canvas.getContext('2d');
+            
+            // Create smooth radial gradient for contact shadow
+            const gradient = context.createRadialGradient(
+                shadowSize / 2,
+                shadowSize / 2,
+                0,
+                shadowSize / 2,
+                shadowSize / 2,
+                shadowSize * 0.35
+            );
+            
+            // Smoother gradient for contact shadow effect
+            gradient.addColorStop(0, `rgba(0, 0, 0, ${shadowParams.opacity})`);
+            gradient.addColorStop(0.4, `rgba(0, 0, 0, ${shadowParams.opacity * 0.5})`);
+            gradient.addColorStop(0.8, `rgba(0, 0, 0, ${shadowParams.opacity * 0.1})`);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, shadowSize, shadowSize);
+            
+            // Apply blur if needed
+            if (shadowParams.blur > 0) {
+                context.filter = `blur(${shadowParams.blur}px)`;
+                context.drawImage(canvas, 0, 0);
+            }
+            
+            const shadowTexture = new THREE.CanvasTexture(canvas);
+            shadowTexture.needsUpdate = true;
+            
+            // Create contact shadow plane
+            const shadowGeometry = new THREE.PlaneGeometry(
+                shadowParams.scale, 
+                shadowParams.scale
+            );
+            const shadowMaterial = new THREE.MeshBasicMaterial({
+                map: shadowTexture,
+                transparent: true,
+                depthWrite: false,
+                polygonOffset: true,
+                polygonOffsetFactor: -1,
+                polygonOffsetUnits: 1
+            });
+            
+            const contactShadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+            contactShadow.rotation.x = -Math.PI / 2;
+            contactShadow.position.y = shadowParams.height;
+            
+            scene.add(contactShadow);
+            
+            // Log parameters for debugging
+            console.log('Contact Shadow Parameters:', shadowParams);
+            console.log('To adjust shadow, modify shadowParams values in the code');
+            
+            return { 
+                shadow: contactShadow, 
+                params: shadowParams
+            };
+        };
+        
+        const contactShadow = createContactShadow();
+
+        // Classe do Guarda-Roupa
+        class Wardrobe {
+            constructor() {
+                this.group = new THREE.Group();
+                this.textureLoader = new THREE.TextureLoader();
+                this.currentMaterial = 'texture';
+                
+                // Carregar textura de madeira
+                this.woodTexture = null;
+                this.textureLoader.load('wood-texture.jpg', 
+                    (texture) => {
+                        texture.wrapS = THREE.RepeatWrapping;
+                        texture.wrapT = THREE.RepeatWrapping;
+                        texture.repeat.set(1, 1);
+                        texture.encoding = THREE.sRGBEncoding;
+                        this.woodTexture = texture;
+                        if (this.currentMaterial === 'texture') {
+                            this.updateMaterials();
+                        }
+                    },
+                    undefined,
+                    (error) => {
+                        console.log('Textura não encontrada, usando cor padrão');
+                    }
+                );
+                
+                this.initMaterials();
+                
+                this.parameters = {
+                    height: 200,
+                    width: 100,
+                    depth: 60,
+                    shoeHeight: 30,
+                    drawerCount: 3,
+                    drawerHeight: 20,
+                    shelfCount: 3
+                };
+                
+                this.build();
+            }
+            
+            initMaterials() {
+                this.materials = {
+                    wood: new THREE.MeshStandardMaterial({ 
+                        color: 0xA68B6F,
+                        roughness: 0.6,
+                        metalness: 0.05,
+                        side: THREE.DoubleSide
+                    }),
+                    interior: new THREE.MeshStandardMaterial({ 
+                        color: 0xB89A7F,
+                        roughness: 0.7,
+                        metalness: 0.02,
+                        side: THREE.DoubleSide
+                    }),
+                    handle: new THREE.MeshStandardMaterial({ 
+                        color: 0x555555,
+                        roughness: 0.3,
+                        metalness: 0.8
+                    })
+                };
+            }
+            
+            setMaterial(type) {
+                this.currentMaterial = type;
+                this.updateMaterials();
+            }
+            
+            updateMaterials() {
+                switch(this.currentMaterial) {
+                    case 'texture':
+                        if (this.woodTexture) {
+                            this.materials.wood.map = this.woodTexture;
+                            this.materials.wood.color.setHex(0xffffff);
+                            this.materials.interior.map = this.woodTexture;
+                            this.materials.interior.color.setHex(0xffffff);
+                        } else {
+                            // Fallback color if texture not loaded
+                            this.materials.wood.map = null;
+                            this.materials.wood.color.setHex(0xA68B6F);
+                            this.materials.interior.map = null;
+                            this.materials.interior.color.setHex(0xB89A7F);
+                        }
+                        this.materials.wood.roughness = 0.6;
+                        this.materials.interior.roughness = 0.7;
+                        break;
+                    
+                    case 'gray':
+                        this.materials.wood.map = null;
+                        this.materials.wood.color.setHex(0x777777);
+                        this.materials.wood.roughness = 0.4;
+                        this.materials.interior.map = null;
+                        this.materials.interior.color.setHex(0x888888);
+                        this.materials.interior.roughness = 0.5;
+                        break;
+                    
+                    case 'light':
+                        this.materials.wood.map = null;
+                        this.materials.wood.color.setHex(0xe8e8e8);
+                        this.materials.wood.roughness = 0.3;
+                        this.materials.interior.map = null;
+                        this.materials.interior.color.setHex(0xf0f0f0);
+                        this.materials.interior.roughness = 0.4;
+                        break;
+                }
+                
+                this.materials.wood.needsUpdate = true;
+                this.materials.interior.needsUpdate = true;
+            }
+            
+            updateParameters(params) {
+                Object.assign(this.parameters, params);
+                this.build();
+            }
+            
+            build() {
+                // Limpar grupo anterior
+                while(this.group.children.length > 0) {
+                    const child = this.group.children[0];
+                    if(child.geometry) child.geometry.dispose();
+                    this.group.remove(child);
+                }
+                
+                const scale = 0.01; // Converter cm para unidades da cena
+                const h = this.parameters.height * scale;
+                const w = this.parameters.width * scale;
+                const d = this.parameters.depth * scale;
+                const thickness = 0.02;
+                
+                // Estrutura principal (caixa externa)
+                // Base
+                const base = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, thickness, d),
+                    this.materials.wood
+                );
+                base.position.y = thickness / 2;
+                this.group.add(base);
+                
+                // Topo
+                const top = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, thickness, d),
+                    this.materials.wood
+                );
+                top.position.y = h - thickness / 2;
+                this.group.add(top);
+                
+                // Lateral esquerda
+                const leftSide = new THREE.Mesh(
+                    new THREE.BoxGeometry(thickness, h, d),
+                    this.materials.wood
+                );
+                leftSide.position.set(-w/2 + thickness/2, h/2, 0);
+                this.group.add(leftSide);
+                
+                // Lateral direita
+                const rightSide = new THREE.Mesh(
+                    new THREE.BoxGeometry(thickness, h, d),
+                    this.materials.wood
+                );
+                rightSide.position.set(w/2 - thickness/2, h/2, 0);
+                this.group.add(rightSide);
+                
+                // Fundo
+                const back = new THREE.Mesh(
+                    new THREE.BoxGeometry(w - thickness*2, h - thickness*2, thickness),
+                    this.materials.interior
+                );
+                back.position.set(0, h/2, -d/2 + thickness/2);
+                this.group.add(back);
+                
+                // Sapateira
+                const shoeH = this.parameters.shoeHeight * scale;
+                if (shoeH > 0) {
+                    const shoeSeparator = new THREE.Mesh(
+                        new THREE.BoxGeometry(w - thickness*2, thickness, d - thickness),
+                        this.materials.interior
+                    );
+                    shoeSeparator.position.set(0, shoeH, 0);
+                    this.group.add(shoeSeparator);
+                }
+                
+                // Gavetas
+                const drawerStartY = shoeH + thickness;
+                const drawerH = this.parameters.drawerHeight * scale;
+                const drawerTotalHeight = this.parameters.drawerCount * drawerH;
+                
+                for (let i = 0; i < this.parameters.drawerCount; i++) {
+                    const drawerY = drawerStartY + i * drawerH;
+                    
+                    // Separador de gaveta
+                    if (i > 0) {
+                        const separator = new THREE.Mesh(
+                            new THREE.BoxGeometry(w - thickness*2, thickness, d - thickness),
+                            this.materials.interior
+                        );
+                        separator.position.set(0, drawerY, 0);
+                        this.group.add(separator);
+                    }
+                    
+                    // Frente da gaveta
+                    const drawerFront = new THREE.Mesh(
+                        new THREE.BoxGeometry(w - thickness*4, drawerH - thickness*2, thickness),
+                        this.materials.wood
+                    );
+                    drawerFront.position.set(0, drawerY + drawerH/2, d/2 - thickness*2);
+                    this.group.add(drawerFront);
+                    
+                    // Puxador da gaveta
+                    const handle = new THREE.Mesh(
+                        new THREE.BoxGeometry(w * 0.3, thickness, thickness * 2),
+                        this.materials.handle
+                    );
+                    handle.position.set(0, drawerY + drawerH/2, d/2 - thickness);
+                    this.group.add(handle);
+                }
+                
+                // Separador após gavetas
+                if (this.parameters.drawerCount > 0) {
+                    const topDrawerSeparator = new THREE.Mesh(
+                        new THREE.BoxGeometry(w - thickness*2, thickness, d - thickness),
+                        this.materials.interior
+                    );
+                    topDrawerSeparator.position.set(0, drawerStartY + drawerTotalHeight, 0);
+                    this.group.add(topDrawerSeparator);
+                }
+                
+                // Prateleiras
+                const shelfStartY = drawerStartY + drawerTotalHeight + thickness;
+                const availableHeight = h - shelfStartY - thickness;
+                
+                if (this.parameters.shelfCount > 0 && availableHeight > 0) {
+                    const shelfSpacing = availableHeight / (this.parameters.shelfCount + 1);
+                    
+                    for (let i = 0; i < this.parameters.shelfCount; i++) {
+                        const shelf = new THREE.Mesh(
+                            new THREE.BoxGeometry(w - thickness*2, thickness, d - thickness),
+                            this.materials.interior
+                        );
+                        shelf.position.set(0, shelfStartY + (i + 1) * shelfSpacing, 0);
+                        this.group.add(shelf);
+                    }
+                }
+                
+                // Guarda-roupa sem portas (design aberto)
+            }
+        }
+
+        // Criar guarda-roupa
+        const wardrobe = new Wardrobe();
+        scene.add(wardrobe.group);
+
+        // Controles de parâmetros
+        const setupControls = () => {
+            // Geral
+            const heightSlider = document.getElementById('height');
+            const widthSlider = document.getElementById('width');
+            const depthSlider = document.getElementById('depth');
+            
+            // Sapateira
+            const shoeHeightSlider = document.getElementById('shoe-height');
+            
+            // Gavetas
+            const drawerCountSlider = document.getElementById('drawer-count');
+            const drawerHeightSlider = document.getElementById('drawer-height');
+            
+            // Prateleiras
+            const shelfCountSlider = document.getElementById('shelf-count');
+            
+            // Material selection
+            const materialOptions = document.querySelectorAll('.material-option');
+            materialOptions.forEach(option => {
+                option.addEventListener('click', (e) => {
+                    // Remove active class from all
+                    materialOptions.forEach(opt => opt.classList.remove('active'));
+                    // Add active class to clicked
+                    option.classList.add('active');
+                    // Update wardrobe material
+                    wardrobe.setMaterial(option.dataset.material);
+                });
+            });
+            
+            // Atualizar valores exibidos
+            const updateValues = () => {
+                document.getElementById('height-value').textContent = heightSlider.value;
+                document.getElementById('width-value').textContent = widthSlider.value;
+                document.getElementById('depth-value').textContent = depthSlider.value;
+                document.getElementById('shoe-height-value').textContent = shoeHeightSlider.value;
+                document.getElementById('drawer-count-value').textContent = drawerCountSlider.value;
+                document.getElementById('drawer-height-value').textContent = drawerHeightSlider.value;
+                document.getElementById('shelf-count-value').textContent = shelfCountSlider.value;
+            };
+            
+            // Atualizar guarda-roupa
+            const updateWardrobe = () => {
+                wardrobe.updateParameters({
+                    height: parseFloat(heightSlider.value),
+                    width: parseFloat(widthSlider.value),
+                    depth: parseFloat(depthSlider.value),
+                    shoeHeight: parseFloat(shoeHeightSlider.value),
+                    drawerCount: parseInt(drawerCountSlider.value),
+                    drawerHeight: parseFloat(drawerHeightSlider.value),
+                    shelfCount: parseInt(shelfCountSlider.value)
+                });
+                updateValues();
+            };
+            
+            // Adicionar listeners
+            heightSlider.addEventListener('input', updateWardrobe);
+            widthSlider.addEventListener('input', updateWardrobe);
+            depthSlider.addEventListener('input', updateWardrobe);
+            shoeHeightSlider.addEventListener('input', updateWardrobe);
+            drawerCountSlider.addEventListener('input', updateWardrobe);
+            drawerHeightSlider.addEventListener('input', updateWardrobe);
+            shelfCountSlider.addEventListener('input', updateWardrobe);
+            
+            updateValues();
+        };
+        
+        setupControls();
+
+        // Mobile bottom sheet interactions - FIXED VERSION
+        const setupMobileInteractions = () => {
+            const controlsPanel = document.getElementById('controls');
+            const mobileHandle = document.getElementById('mobile-handle');
+            const mobileHeader = document.getElementById('mobile-header');
+            
+            if (!mobileHandle || !mobileHeader) return;
+            
+            let startY = 0;
+            let currentY = 0;
+            let isDragging = false;
+            
+            const togglePanel = () => {
+                controlsPanel.classList.toggle('expanded');
+                
+                // Reset any inline transforms
+                controlsPanel.style.transform = '';
+                
+                // Scroll to top when expanding
+                if (controlsPanel.classList.contains('expanded')) {
+                    const content = controlsPanel.querySelector('.controls-content');
+                    if (content) {
+                        content.scrollTop = 0;
+                    }
+                }
+            };
+            
+            const handleStart = (clientY) => {
+                isDragging = true;
+                startY = clientY;
+                currentY = clientY;
+                controlsPanel.style.transition = 'none';
+            };
+            
+            const handleMove = (clientY) => {
+                if (!isDragging) return;
+                
+                currentY = clientY;
+                const deltaY = currentY - startY;
+                
+                // Get current state
+                const isExpanded = controlsPanel.classList.contains('expanded');
+                
+                if (isExpanded) {
+                    // When expanded, allow dragging down to collapse
+                    if (deltaY > 0) {
+                        const progress = Math.min(deltaY / window.innerHeight, 1);
+                        controlsPanel.style.transform = `translateY(${deltaY}px)`;
+                    }
+                } else {
+                    // When collapsed, allow dragging up to expand
+                    if (deltaY < 0) {
+                        const maxDrag = window.innerHeight - 80;
+                        const drag = Math.max(deltaY, -maxDrag);
+                        controlsPanel.style.transform = `translateY(calc(100% - 80px + ${drag}px))`;
+                    }
+                }
+            };
+            
+            const handleEnd = () => {
+                if (!isDragging) return;
+                
+                isDragging = false;
+                const deltaY = currentY - startY;
+                const threshold = 50; // pixels to trigger state change
+                
+                // Re-enable transitions
+                controlsPanel.style.transition = '';
+                
+                const isExpanded = controlsPanel.classList.contains('expanded');
+                
+                if (isExpanded && deltaY > threshold) {
+                    // Collapse
+                    controlsPanel.classList.remove('expanded');
+                } else if (!isExpanded && deltaY < -threshold) {
+                    // Expand
+                    controlsPanel.classList.add('expanded');
+                }
+                
+                // Reset transform
+                controlsPanel.style.transform = '';
+            };
+            
+            // Touch events
+            mobileHandle.addEventListener('touchstart', (e) => {
+                handleStart(e.touches[0].clientY);
+            }, { passive: true });
+            
+            mobileHeader.addEventListener('touchstart', (e) => {
+                // Don't start drag if touching a control element
+                if (e.target.closest('input, button, select')) return;
+                handleStart(e.touches[0].clientY);
+            }, { passive: true });
+            
+            window.addEventListener('touchmove', (e) => {
+                if (isDragging) {
+                    handleMove(e.touches[0].clientY);
+                }
+            }, { passive: true });
+            
+            window.addEventListener('touchend', handleEnd, { passive: true });
+            
+            // Click to toggle
+            mobileHandle.addEventListener('click', (e) => {
+                if (!isDragging) {
+                    togglePanel();
+                }
+            });
+            
+            mobileHeader.addEventListener('click', (e) => {
+                // Don't toggle if clicking on controls
+                if (e.target.closest('input, button, select')) return;
+                if (!isDragging) {
+                    togglePanel();
+                }
+            });
+        };
+        
+        // Setup mobile interactions if on mobile
+        if (window.innerWidth <= 768) {
+            setupMobileInteractions();
+        }
+
+        // Redimensionar
+        window.addEventListener('resize', () => {
+            const isMobile = window.innerWidth <= 768;
+            const width = isMobile ? window.innerWidth : window.innerWidth - 320;
+            const height = window.innerHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            
+            renderer.setSize(width, height);
+            
+            // Re-setup mobile interactions if switching to mobile
+            if (isMobile && !document.getElementById('controls').hasAttribute('data-mobile-setup')) {
+                setupMobileInteractions();
+                document.getElementById('controls').setAttribute('data-mobile-setup', 'true');
+            } else if (!isMobile) {
+                document.getElementById('controls').removeAttribute('data-mobile-setup');
+                document.getElementById('controls').classList.remove('expanded');
+                document.getElementById('controls').style.transform = '';
+            }
+        });
+
+        // Loop de animação
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
